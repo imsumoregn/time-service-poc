@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF--8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Time Service Monitoring Dashboard</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f6f8; color: #333; margin: 0; padding: 20px; }
+        h1 { text-align: center; color: #1a2b4d; }
+        #dashboard { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; }
+        .card { background: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); padding: 20px; width: 300px; }
+        .card.healthy { border-left: 5px solid #28a745; }
+        .card.unhealthy { border-left: 5px solid #dc3545; }
+        .card h2 { margin-top: 0; font-size: 1.2em; color: #0056b3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .card p { margin: 5px 0; font-size: 0.9em; }
+        #last-updated { text-align: center; margin-top: 20px; font-style: italic; color: #777; }
+    </style>
+</head>
+<body>
+    <h1>Time as a Service - Fleet Status</h1>
+    <div id="dashboard"></div>
+    <p id="last-updated">Updating...</p>
+
+    <script>
+        const dashboard = document.getElementById('dashboard');
+        const lastUpdatedEl = document.getElementById('last-updated');
+
+        function createStatusCard(podStatus) {
+            const card = document.createElement('div');
+            card.className = podStatus.is_healthy ? 'card healthy' : 'card unhealthy';
+            let details = podStatus.is_healthy ? `
+                <p><strong>Stratum:</strong> ${podStatus.stratum || 'N/A'}</p>
+                <p><strong>Last Offset:</strong> ${podStatus.last_offset_sec || 'N/A'}</p>
+                <p><strong>Root Delay:</strong> ${podStatus.root_delay_sec || 'N/A'}</p>
+            ` : `<p><strong>Error:</strong> ${podStatus.error || 'Unknown'}</p>`;
+
+            card.innerHTML = `<h2>${podStatus.pod_name}</h2><p><strong>Pod IP:</strong> ${podStatus.pod_ip}</p>${details}`;
+            return card;
+        }
+
+        async function fetchAndUpdateStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const statuses = await response.json();
+                dashboard.innerHTML = '';
+                if (statuses && statuses.length > 0) {
+                    statuses.sort((a,b) => a.pod_name.localeCompare(b.pod_name)).forEach(podStatus => {
+                        dashboard.appendChild(createStatusCard(podStatus));
+                    });
+                } else {
+                    dashboard.innerHTML = '<p>No ntp-proxy pods found.</p>';
+                }
+                lastUpdatedEl.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+            } catch (error) {
+                console.error("Failed to fetch status:", error);
+                dashboard.innerHTML = `<p style="color: red;">Failed to load dashboard data.</p>`;
+            }
+        }
+        fetchAndUpdateStatus();
+        setInterval(fetchAndUpdateStatus, 5000);
+    </script>
+</body>
+</html>
