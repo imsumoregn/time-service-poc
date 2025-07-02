@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: monitoring-ui-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: monitoring-ui
+  template:
+    metadata:
+      labels:
+        app: monitoring-ui
+    spec:
+      serviceAccountName: monitoring-ui-sa
+      containers:
+      - name: monitoring-ui
+        image: gcr.io/your-gcp-project-id/monitoring-ui:latest
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "64Mi"
+          limits:
+            cpu: "100m"
+            memory: "128Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: monitoring-ui-service
+spec:
+  type: ClusterIP
+  selector:
+    app: monitoring-ui
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080

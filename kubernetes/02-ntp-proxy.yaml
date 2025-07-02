@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ntp-proxy-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: ntp-proxy
+  template:
+    metadata:
+      labels:
+        app: ntp-proxy
+    spec:
+      containers:
+      - name: ntp-proxy-container
+        image: gcr.io/your-gcp-project-id/ntp-proxy:latest
+        ports:
+        - containerPort: 8080
+        securityContext:
+          capabilities:
+            add: ["SYS_TIME"]
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "64Mi"
+          limits:
+            cpu: "200m"
+            memory: "128Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ntp-proxy-service
+spec:
+  type: ClusterIP
+  selector:
+    app: ntp-proxy
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080

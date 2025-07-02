@@ -1,0 +1,49 @@
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  id: 'build-ntp-proxy'
+  args: ['build', '-t', '${_DOCKER_REPO}/ntp-proxy:latest', '-t', '${_DOCKER_REPO}/ntp-proxy:$SHORT_SHA', './ntp-proxy']
+
+- name: 'gcr.io/cloud-builders/docker'
+  id: 'build-api-gateway'
+  args: ['build', '-t', '${_DOCKER_REPO}/api-gateway:latest', '-t', '${_DOCKER_REPO}/api-gateway:$SHORT_SHA', './api-gateway']
+  
+- name: 'gcr.io/cloud-builders/docker'
+  id: 'build-monitoring-ui'
+  args: ['build', '-t', '${_DOCKER_REPO}/monitoring-ui:latest', '-t', '${_DOCKER_REPO}/monitoring-ui:$SHORT_SHA', './monitoring-ui']
+
+- name: 'gcr.io/cloud-builders/gcloud'
+  id: 'get-gke-credentials'
+  entrypoint: 'gcloud'
+  args: ['container', 'clusters', 'get-credentials', '${_GKE_CLUSTER}', '--region=${_GKE_REGION}']
+
+- name: 'gcr.io/cloud-builders/gcloud'
+  id: 'replace-image-placeholders'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    # Use a different delimiter for sed to handle the repo path slashes
+    sed -i "s|gcr.io/your-gcp-project-id|${_DOCKER_REPO}|g" kubernetes/*.yaml
+
+- name: 'gcr.io/cloud-builders/kubectl'
+  id: 'deploy-to-gke'
+  args: ['apply', '-f', 'kubernetes/']
+  env:
+    - 'CLOUDSDK_COMPUTE_REGION=${_GKE_REGION}'
+    - 'CLOUDSDK_CONTAINER_CLUSTER=${_GKE_CLUSTER}'
+
+images:
+- '${_DOCKER_REPO}/ntp-proxy:latest'
+- '${_DOCKER_REPO}/ntp-proxy:$SHORT_SHA'
+- '${_DOCKER_REPO}/api-gateway:latest'
+- '${_DOCKER_REPO}/api-gateway:$SHORT_SHA'
+- '${_DOCKER_REPO}/monitoring-ui:latest'
+- '${_DOCKER_REPO}/monitoring-ui:$SHORT_SHA'
+
+substitutions:
+  _GKE_CLUSTER: time-service-cluster
+  _GKE_REGION: us-central1
+  _DOCKER_REPO: us-central1-docker.pkg.dev/${PROJECT_ID}/time-service-repo
+
+options:
+  logging: CLOUD_LOGGING_ONLY
